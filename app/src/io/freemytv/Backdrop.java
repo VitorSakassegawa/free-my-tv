@@ -25,9 +25,17 @@ import android.graphics.Shader;
 final class Backdrop {
     /** The UI's size against 1920×1080 (at most 1): nothing is built bigger than the screen can show. */
     private static final float UI_SCALE = uiScale();
-    static final int W = ui(1920), H = ui(1080), FW = 192, FH = 108, GW = 480, GH = 270;
+    /**
+     * The home screen's working size. On older TVs (Android 9 to 11) and low-RAM ones the photo, the cards and the
+     * glass are built at 720p at most, and scaled up on screen: those TVs have 1 to 2 GB and swap as soon as a few
+     * 1080p photos are in memory, and from the couch the upscale doesn't show. The screensaver is not affected: it
+     * builds its own photo at the screen's size (SCREEN_W), from the same files.
+     */
+    private static final float HOME_SCALE = (Ui.LEGACY || lowRam()) ? Math.min(UI_SCALE, 1280f / 1920f) : UI_SCALE;
+    static final int SCREEN_W = ui(1920), SCREEN_H = ui(1080);
+    static final int W = home(1920), H = home(1080), FW = 192, FH = 108, GW = 480, GH = 270;
     /** The cards at their focused size (1.05×): the wide one and the two tall ones. */
-    static final int WIDE_W = ui(1092), WIDE_H = ui(464), TALL_W = ui(336), TALL_H = ui(464);
+    static final int WIDE_W = home(1092), WIDE_H = home(464), TALL_W = home(336), TALL_H = home(464);
 
     private static float uiScale() {
         android.util.DisplayMetrics m = android.content.res.Resources.getSystem().getDisplayMetrics();
@@ -37,6 +45,20 @@ final class Backdrop {
 
     private static int ui(int px) {
         return Math.round(px * UI_SCALE);
+    }
+
+    private static int home(int px) {
+        return Math.round(px * HOME_SCALE);
+    }
+
+    /** What ActivityManager.isLowRamDevice() reads (ro.config.low_ram), without a Context at class-init time. */
+    private static boolean lowRam() {
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            return (Boolean) sp.getMethod("getBoolean", String.class, boolean.class).invoke(null, "ro.config.low_ram", false);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return false;
+        }
     }
     final Bitmap image;
     final int[] frost;      // heavily blurred (frosted glass, bottom drawer)
